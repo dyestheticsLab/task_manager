@@ -3,6 +3,7 @@ import { BaseItem, EditionCoordinates, Matrix, MatrixProps } from './Matrix';
 import { Circle, Group, Text } from 'react-konva';
 import { Html } from 'react-konva-utils';
 import { ComponentProps, useCallback, useState } from 'react';
+
 import type Konva from 'konva';
 
 const initialTasks = [
@@ -138,6 +139,7 @@ function HtmlInputFormOverlay(props: ComponentProps<'form'>){
   return (
     <form
       style={{
+        display: 'grid',
         background: '#222',
         color: '#fff',
         border: '1px solid #888',
@@ -154,6 +156,7 @@ function HtmlInputFormOverlay(props: ComponentProps<'form'>){
         placeholder="Edit label"
         style={{ background: 'inherit', color: 'inherit', border: 'none', outline: 'none', fontSize: 16 }}
       />
+      <button>Save</button>
     </form>
   );
 }
@@ -165,6 +168,7 @@ export const QuadrantTasks: StoryObj<
     renderInput(editing, setEditing, dispatch) {
       return (
         <form
+          style={{display: 'grid'}}
           action={function (formData) {
             const taskname = formData.get('taskName') as string;
             const x = editing?.firstLayer.x ?? 0;
@@ -190,6 +194,7 @@ export const QuadrantTasks: StoryObj<
             autoFocus
             placeholder="Task name"
           />
+          <button>Save</button>
         </form>
       );
     },

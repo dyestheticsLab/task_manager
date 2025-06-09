@@ -17,6 +17,16 @@ body {
   justify-content: center;
 }
 
+button {
+  background-color: #1100dd;
+  color: white;
+}
+
+form{
+  display: grid;
+  gap: 12px
+}
+
 .content h1 {
   font-size: 3.6rem;
   font-weight: 700;
