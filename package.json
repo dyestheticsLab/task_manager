@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "rsbuild preview",
     "storybook": "IS_STORYBOOK=1 storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "IS_STORYBOOK=1 storybook build"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
