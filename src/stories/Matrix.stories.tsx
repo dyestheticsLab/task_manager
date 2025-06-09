@@ -1,6 +1,9 @@
 import { Meta, StoryObj } from 'storybook-react-rsbuild';
 import { BaseItem, EditionCoordinates, Matrix, MatrixProps } from './Matrix';
 import { Circle, Group, Text } from 'react-konva';
+import { Html } from 'react-konva-utils';
+import { ComponentProps, useCallback, useState } from 'react';
+import type Konva from 'konva';
 
 const initialTasks = [
   { id: 'origin', x: 0, y: 0, label: '', color: '#fff', radius: 8 },
@@ -79,6 +82,82 @@ const exaggeratedGetQuadrantProps = makeQuadrantHandler({
   },
 });
 
+function TaskItem({ task, dispatch }: { task: BaseItem & { color: string; radius: number }, dispatch: any }) {
+  const [editing, setEditing] = useState(false);
+
+
+  const onDoubleClick = useCallback((event: Konva.KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true;
+    setEditing(true);
+  }, [])
+
+  return (
+      <Group
+        x={task.x}
+        y={task.y}
+        draggable={!!task.label}
+        onDragEnd={(e) => {
+          const abs = e.target.getAbsolutePosition();
+          const { color, radius } = exaggeratedGetQuadrantProps({ stage: abs, firstLayer: e.target.getPosition() });
+          dispatch({
+            type: 'update',
+            id: task.id,
+            updates: {
+              x: e.target.x(),
+              y: e.target.y(),
+              color,
+              radius,
+            },
+          });
+        }}
+        onDblClick={onDoubleClick}
+      >
+        <Circle radius={task.radius} fill={task.color} />
+        {task.label && !editing && (
+          <Text text={task.label} fontSize={18} fill="#fff" x={-16} y={-10} />
+        )}
+
+        {editing && (
+          <Html>
+            <HtmlInputFormOverlay
+              action={(formData: FormData) => {
+                const value = formData.get('editLabel')
+                dispatch({ type: 'update', id: task.id, updates: { label: value } });
+                setEditing(false);
+              }}
+              onBlur={() => setEditing(false)}
+            />
+          </Html>
+        )}
+      </Group>
+
+  );
+}
+
+function HtmlInputFormOverlay(props: ComponentProps<'form'>){
+  return (
+    <form
+      style={{
+        background: '#222',
+        color: '#fff',
+        border: '1px solid #888',
+        borderRadius: 4,
+        padding: '2px 6px',
+        fontSize: 16,
+      }}
+      {...props}
+    >
+      <input
+        type="text"
+        name="editLabel"
+        autoFocus
+        placeholder="Edit label"
+        style={{ background: 'inherit', color: 'inherit', border: 'none', outline: 'none', fontSize: 16 }}
+      />
+    </form>
+  );
+}
+
 export const QuadrantTasks: StoryObj<
   MatrixProps<BaseItem & { color: string; radius: number }>
 > = {
@@ -86,12 +165,6 @@ export const QuadrantTasks: StoryObj<
     renderInput(editing, setEditing, dispatch) {
       return (
         <form
-          style={{
-            position: 'absolute',
-            left: editing?.stage.x,
-            top: editing?.stage.y,
-            zIndex: 1000,
-          }}
           action={function (formData) {
             const taskname = formData.get('taskName') as string;
             const x = editing?.firstLayer.x ?? 0;
@@ -124,32 +197,7 @@ export const QuadrantTasks: StoryObj<
     height: window.innerHeight - 10,
     width: window.innerWidth - 10,
     renderItem(task, dispatch) {
-      return (
-        <Group
-          key={task.id}
-          x={task.x}
-          y={task.y}
-          draggable={!!task.label}
-          onDragEnd={(e) => {
-            const abs = e.target.getAbsolutePosition();
-
-            const { color, radius } = exaggeratedGetQuadrantProps({ stage: abs, firstLayer: e.target.getPosition() });
-            dispatch({
-              type: 'move',
-              id: task.id,
-              x: e.target.x(),
-              y: e.target.y(),
-              color,
-              radius,
-            });
-          }}
-        >
-          <Circle radius={task.radius} fill={task.color} />
-          {task.label && (
-            <Text text={task.label} fontSize={18} fill="#fff" x={-16} y={-10} />
-          )}
-        </Group>
-      );
+      return <TaskItem key={task.id} task={task} dispatch={dispatch} />;
     },
   },
   name: 'Matrix with 4 Tasks in Each Quadrant',

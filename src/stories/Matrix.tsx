@@ -8,6 +8,7 @@ import { Stage, Layer, Line, Group } from 'react-konva';
 
 import type Konva from 'konva';
 import './Matrix.css';
+import { Html } from 'react-konva-utils';
 
 export interface BaseItem {
   id: string;
@@ -61,12 +62,17 @@ export interface MatrixProps<T extends BaseItem> {
     dispatch: React.Dispatch<ItemAction<T>>,
   ) => React.ReactNode;
   containerProps?: ComponentProps<'div'>;
+  onCanvasDblClick?: (coords: EditionCoordinates) => void;
 }
 
 type ItemAction<T extends BaseItem> =
   | { type: 'add'; item: T }
+  | { type: 'bulkAdd'; items: T[] }
   | { type: 'init'; items: T[] }
-  | { type: 'move'; id: string; x: number; y: number; color?: string; radius?: number };
+  | { type: 'update'; id: string; updates: Partial<T> }
+  | { type: 'bulkUpdate'; predicate: (item: T) => boolean; updates: Partial<T> }
+  | { type: 'delete'; id?: string; predicate?: (item: T) => boolean }
+  | { type: 'bulkDelete'; predicate: (item: T) => boolean };
 
 function itemsReducer<T extends BaseItem>(
   state: T[],
@@ -75,14 +81,27 @@ function itemsReducer<T extends BaseItem>(
   switch (action.type) {
     case 'add':
       return [...state, action.item];
+    case 'bulkAdd':
+      return [...state, ...action.items];
     case 'init':
       return action.items;
-    case 'move':
+    case 'update':
       return state.map((t) =>
-        t.id === action.id
-          ? { ...t, x: action.x, y: action.y, ...(action.color && { color: action.color }), ...(action.radius && { radius: action.radius }) }
-          : t
+        t.id === action.id ? { ...t, ...action.updates } : t
       );
+    case 'bulkUpdate':
+      return state.map((t) =>
+        action.predicate(t) ? { ...t, ...action.updates } : t
+      );
+    case 'delete':
+      if (action.id) {
+        return state.filter((t) => t.id !== action.id);
+      } else if (action.predicate) {
+        return state.filter((t) => !action.predicate!(t));
+      }
+      return state;
+    case 'bulkDelete':
+      return state.filter((t) => !action.predicate(t));
     default:
       return state;
   }
@@ -108,6 +127,7 @@ export function Matrix<T extends BaseItem>({
   renderItem,
   renderInput,
   containerProps,
+  onCanvasDblClick,
 }: MatrixProps<T>) {
   const [stagePos] = useState(() => ({ x: width / 2, y: height / 2 }));
 
@@ -116,20 +136,25 @@ export function Matrix<T extends BaseItem>({
 
   const handleDblClick = useCallback(function (
     this: Konva.Stage,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _event: Konva.KonvaEventObject<MouseEvent>,
+    event: Konva.KonvaEventObject<MouseEvent>,
   ) {
-    const positon = this.getPointerPosition();
-    const [firstLayer] = this.getLayers();
-    const layerPosition = firstLayer.getRelativePointerPosition();
+    const isHere = event.target === this
 
-    if (!positon || !layerPosition) return;
-
-    setEditing({
-      firstLayer: layerPosition,
-      stage: positon,
-    });
-  }, []);
+    if (isHere) {
+      const positon = this.getPointerPosition();
+      const [firstLayer] = this.getLayers();
+      const layerPosition = firstLayer.getRelativePointerPosition();
+      if (!positon || !layerPosition) return;
+      const coords = {
+        firstLayer: layerPosition,
+        stage: positon,
+      };
+      setEditing(coords);
+      if (typeof onCanvasDblClick === 'function') {
+        onCanvasDblClick(coords);
+      }
+    }
+  }, [onCanvasDblClick]);
 
   return (
     <div
@@ -224,9 +249,18 @@ export function Matrix<T extends BaseItem>({
             strokeWidth={4}
           />
           <Group>{items.map((item) => renderItem(item, dispatch))}</Group>
+          {editing && <Html
+            groupProps={{
+              x:editing.firstLayer.x,
+              y:editing.firstLayer.y
+            }}
+          >
+            {renderInput(editing, setEditing, dispatch)}
+          </Html>
+            }
         </Layer>
       </Stage>
-      {editing && renderInput(editing, setEditing, dispatch)}
+      
     </div>
   );
 }
